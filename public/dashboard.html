@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FindMe: Responder Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    body { display: flex; flex-direction: column; min-height: 100vh; }
+    .board { flex: 1; display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+    .stats { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .stat { display: flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
+    .stat b { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+    .stats .spacer { flex: 1; }
+    .main { display: grid; min-height: 0; }
+    @media (min-width: 900px) { .main { grid-template-columns: 420px 1fr; } }
+    #map { min-height: 50vh; z-index: 0; }
+    .list { overflow-y: auto; padding: 12px; display: grid; gap: 10px; align-content: start; max-height: calc(100vh - 120px); }
+    @media (max-width: 899px) { .list { max-height: none; order: 2; } }
+
+    .alert { border-left: 5px solid var(--border); cursor: pointer; }
+    .alert.new { border-left-color: var(--red); }
+    .alert.acknowledged { border-left-color: var(--amber); }
+    .alert.resolved { border-left-color: var(--green); opacity: 0.7; }
+    .alert.fresh { animation: flash 1.2s ease-out 2; }
+    @keyframes flash { 30% { background: var(--red-soft); } }
+    @media (prefers-reduced-motion: reduce) { .alert.fresh { animation: none; } }
+    .alert h3 { margin: 6px 0 2px; font-size: 1rem; }
+    .alert .head { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .alert .time { margin-left: auto; font-size: 0.8rem; color: var(--muted); }
+    .alert .code { font-size: 1.1rem; }
+    .alert dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 8px 0 0; font-size: 0.85rem; }
+    .alert dt { color: var(--muted); }
+    .alert dd { margin: 0; }
+    .actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .actions .btn { padding: 6px 10px; font-size: 0.85rem; }
+    .empty { text-align: center; padding: 40px 16px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-dot"></span>FindMe</a>
+    <nav class="nav">
+      <a href="/">Smartphone</a>
+      <a href="/keypad">Keypad phone</a>
+      <a href="/dashboard" aria-current="page">Responders</a>
+    </nav>
+  </header>
+
+  <div class="board">
+    <div class="stats">
+      <div class="stat"><b id="n-new">0</b><span class="muted small">new</span></div>
+      <div class="stat"><b id="n-ack">0</b><span class="muted small">responding</span></div>
+      <div class="stat"><b id="n-done">0</b><span class="muted small">resolved</span></div>
+      <span class="badge amber" id="mode" hidden>Demo data</span>
+      <span class="spacer"></span>
+      <button class="btn" id="sound" aria-pressed="false">Sound off</button>
+      <button class="btn" id="clear">Clear demo</button>
+    </div>
+    <div class="main">
+      <div class="list" id="list" aria-live="polite"></div>
+      <div id="map" role="region" aria-label="Map of alerts"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const SOURCES = { app: 'Smartphone GPS', ussd: 'Keypad phone · USSD', sms: 'Keypad phone · SMS' };
+    const STATUS = { new: ['New', 'red'], acknowledged: ['Responding', 'amber'], resolved: ['Resolved', 'green'] };
+
+    const map = L.map('map').setView([9.0765, 7.3986], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(map);
+    const layers = {};
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+    let seen = null;
+    let soundOn = false;
+    let alerts = [];
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    function ago(iso) {
+      const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000));
+      if (s < 60) return `${s}s ago`;
+      if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+      return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function place(p) {
+      return [p?.names?.locality, p?.names?.lga, p?.names?.state].filter(Boolean).join(', ');
+    }
+
+    function card(a, fresh) {
+      const [label, color] = STATUS[a.status] || STATUS.new;
+      const loc = a.location;
+      const where = loc.method === 'gps'
+        ? `GPS${loc.accuracy_m ? ` ±${loc.accuracy_m} m` : ''}${loc.simulated ? ' (demo)' : ''}`
+        : `Cell tower: ${esc(loc.tower)}, ±${(loc.accuracy_m / 1000).toFixed(1)} km`;
+      const code = a.postcode?.display
+        ? `<span class="postcode code">${esc(a.postcode.display)}</span>${loc.method === 'tower' ? ' <span class="muted small">(postcode area)</span>' : ''}`
+        : '<span class="muted">No postcode in range</span>';
+      return `<article class="card alert ${a.status}${fresh ? ' fresh' : ''}" data-id="${a.id}">
+        <div class="head">
+          <span class="badge ${color}">${label}</span>
+          <span class="badge">${esc(SOURCES[a.source] || a.source)}</span>
+          <span class="time">${ago(a.createdAt)}</span>
+        </div>
+        <h3>${esc(a.typeLabel)} · ${esc(a.id)}</h3>
+        <div>${code}</div>
+        <div>${esc(place(a.postcode)) || '<span class="muted">Area unknown</span>'}</div>
+        <dl>
+          <dt>Location</dt><dd>${where}</dd>
+          ${a.home ? `<dt>Home</dt><dd><span class="postcode">${esc(a.home.display)}</span> ${esc(place(a.home))}<br><span class="muted small">${esc(a.home.name || '')}${a.home.name ? ' · ' : ''}saved by ${esc(a.home.registeredBy)}</span></dd>` : ''}
+          ${a.phone ? `<dt>Phone</dt><dd><a href="tel:${esc(a.phone)}">${esc(a.phone)}</a></dd>` : ''}
+          ${a.note ? `<dt>Message</dt><dd>${esc(a.note)}</dd>` : ''}
+        </dl>
+        <div class="actions">
+          ${a.status === 'new' ? `<button class="btn" data-set="acknowledged">Respond</button>` : ''}
+          ${a.status !== 'resolved' ? `<button class="btn primary" data-set="resolved">Resolve</button>` : ''}
+          <a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank" rel="noopener">Directions</a>
+        </div>
+      </article>`;
+    }
+
+    function drawMap(fresh, first) {
+      const ids = new Set(alerts.map((a) => a.id));
+      for (const id of Object.keys(layers)) if (!ids.has(id)) { layers[id].remove(); delete layers[id]; }
+      for (const a of alerts) {
+        const color = a.status === 'resolved' ? css('--green') : a.status === 'acknowledged' ? css('--amber') : css('--red');
+        if (layers[a.id]) { layers[a.id].setStyle({ color, fillColor: color }); continue; }
+        const { lat, lng, accuracy_m, method } = a.location;
+        const layer = method === 'tower'
+          ? L.circle([lat, lng], { radius: accuracy_m, color, fillColor: color, fillOpacity: 0.15, weight: 2 })
+          : L.circleMarker([lat, lng], { radius: 10, color, fillColor: color, fillOpacity: 0.8, weight: 3 });
+        layer.bindPopup(`<b>${esc(a.typeLabel)}</b><br>${esc(a.postcode?.display || '')}<br>${esc(place(a.postcode))}`);
+        layer.addTo(map);
+        layers[a.id] = layer;
+      }
+      if (fresh.length) focus(fresh[0]);
+      else if (first && alerts.length) map.fitBounds(L.featureGroup(Object.values(layers)).getBounds(), { maxZoom: 13, padding: [30, 30] });
+    }
+
+    function focus(a) {
+      const layer = layers[a.id];
+      if (!layer) return;
+      if (a.location.method === 'tower') map.fitBounds(layer.getBounds(), { maxZoom: 13 });
+      else map.setView(layer.getLatLng(), 16);
+      layer.openPopup();
+    }
+
+    function beep() {
+      if (!soundOn) return;
+      try {
+        const ctx = new AudioContext();
+        [0, 0.25, 0.5].forEach((t) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.frequency.value = 880;
+          g.gain.setValueAtTime(0.2, ctx.currentTime + t);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.2);
+          o.connect(g).connect(ctx.destination);
+          o.start(ctx.currentTime + t);
+          o.stop(ctx.currentTime + t + 0.2);
+        });
+      } catch {}
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('/api/alerts', { cache: 'no-store' });
+        alerts = (await res.json()).alerts || [];
+      } catch { return; }
+      const first = !seen;
+      const fresh = seen ? alerts.filter((a) => !seen.has(a.id)) : [];
+      seen = new Set(alerts.map((a) => a.id));
+      $('list').innerHTML = alerts.length
+        ? alerts.map((a) => card(a, fresh.includes(a))).join('')
+        : `<div class="card empty"><b>No alerts yet</b><p class="muted small">Send one from the <a href="/">smartphone</a> or <a href="/keypad">keypad phone</a> page.</p></div>`;
+      $('n-new').textContent = alerts.filter((a) => a.status === 'new').length;
+      $('n-ack').textContent = alerts.filter((a) => a.status === 'acknowledged').length;
+      $('n-done').textContent = alerts.filter((a) => a.status === 'resolved').length;
+      $('mode').hidden = !alerts.some((a) => a.demoMode);
+      drawMap(fresh, first);
+      if (fresh.length) beep();
+    }
+
+    $('list').addEventListener('click', async (e) => {
+      const el = e.target.closest('.alert');
+      if (!el) return;
+      const set = e.target.closest('[data-set]')?.dataset.set;
+      if (set) {
+        await fetch('/api/alerts', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: el.dataset.id, status: set }),
+        });
+        return load();
+      }
+      if (!e.target.closest('a')) focus(alerts.find((a) => a.id === el.dataset.id));
+    });
+
+    $('sound').addEventListener('click', () => {
+      soundOn = !soundOn;
+      $('sound').textContent = soundOn ? 'Sound on' : 'Sound off';
+      $('sound').setAttribute('aria-pressed', soundOn);
+      if (soundOn) beep();
+    });
+
+    $('clear').addEventListener('click', async () => {
+      if (!confirm('Clear all alerts?')) return;
+      await fetch('/api/alerts', { method: 'DELETE' });
+      load();
+    });
+
+    load();
+    setInterval(load, 3000);
+  </script>
+</body>
+</html>

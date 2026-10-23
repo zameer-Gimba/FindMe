@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FindMe: Keypad Phone</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .layout { display: grid; gap: 20px; max-width: 900px; margin: 0 auto; padding: 20px 16px 48px; }
+    @media (min-width: 820px) { .layout { grid-template-columns: 1fr 340px; align-items: start; } }
+
+    h1 { margin: 0 0 6px; font-size: 1.4rem; letter-spacing: -0.02em; }
+    .intro p { margin: 0 0 12px; }
+    .controls { display: grid; gap: 12px; margin-top: 12px; }
+    .how { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.9rem; }
+    code { font-family: ui-monospace, Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+
+    .tabs { display: flex; gap: 6px; justify-content: center; margin-bottom: 12px; }
+    .tabs button { flex: 1; }
+    .tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+    .phone {
+      width: 100%; max-width: 300px; margin: 0 auto;
+      background: linear-gradient(160deg, #3a3f44, #1d2023);
+      border-radius: 36px 36px 48px 48px; padding: 22px 18px 26px;
+      box-shadow: var(--shadow), inset 0 1px 0 rgb(255 255 255 / 0.12);
+    }
+    .speaker { width: 60px; height: 6px; border-radius: 3px; background: #0d0f10; margin: 0 auto 14px; }
+    .screen {
+      background: #b9cfa0; color: #1d2a14; border-radius: 8px;
+      height: 200px; padding: 10px 12px; overflow-y: auto;
+      font: 600 14px/1.35 ui-monospace, Menlo, Consolas, monospace;
+      box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.35);
+      display: flex; flex-direction: column;
+    }
+    .screen .msg { white-space: pre-wrap; flex: 1; }
+    .screen input {
+      font: inherit; color: inherit; background: rgb(255 255 255 / 0.35);
+      border: 1px solid rgb(29 42 20 / 0.4); border-radius: 4px; padding: 3px 6px; margin-top: 6px; width: 100%;
+    }
+    .screen .hint { font-size: 11px; opacity: 0.7; margin-top: 4px; }
+    .softkeys { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 12px; }
+    .softkeys button { padding: 10px; border-radius: 12px; border: 0; font: 700 0.85rem system-ui; color: #fff; cursor: pointer; }
+    .call { background: #1f9d55; }
+    .end { background: #d0342c; }
+    .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .keys button {
+      padding: 10px 0; border-radius: 12px; border: 0; cursor: pointer;
+      background: #2b3034; color: #f3f4f5; font: 700 1.15rem system-ui;
+      box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.4);
+    }
+    .keys button span { display: block; font-size: 0.6rem; font-weight: 600; opacity: 0.6; letter-spacing: 0.08em; }
+    .keys button:active, .softkeys button:active { transform: translateY(1px); }
+
+    .sms-thread { display: flex; flex-direction: column; gap: 6px; }
+    .bubble { padding: 6px 8px; border-radius: 6px; max-width: 90%; white-space: pre-wrap; }
+    .bubble.out { align-self: flex-end; background: rgb(29 42 20 / 0.15); }
+    .bubble.in { align-self: flex-start; background: rgb(255 255 255 / 0.4); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+    .chips[hidden] { display: none; }
+    .chips button { font-size: 0.8rem; padding: 6px 10px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-dot"></span>FindMe</a>
+    <nav class="nav">
+      <a href="/">Smartphone</a>
+      <a href="/keypad" aria-current="page">Keypad phone</a>
+      <a href="/dashboard">Responders</a>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="intro card">
+      <h1>No smartphone? No data? No problem.</h1>
+      <p class="muted">This simulates a basic keypad phone. No GPS or internet is needed: the mobile network already knows which tower the phone is on.</p>
+      <ol class="how">
+        <li>Dial <code>*347*112#</code> and press <b>Call</b>. Then choose 1–5.</li>
+        <li>Fastest way: dial <code>*347*112*1#</code> to send an attack alert at once.</li>
+        <li>Or send an SMS: <code>HELP</code>, <code>TAIMAKO</code>, <code>EGBA MI</code> or <code>NYEM AKA</code>.</li>
+        <li>Option 6 or SMS <code>HOME FC01A01KP27</code> saves a home postcode once, so responders know where you live.</li>
+      </ol>
+      <div class="controls">
+        <label class="field">Caller
+          <select id="caller">
+            <option value="+2348000000001">Mama Aisha (+234 800 000 0001), home postcode saved</option>
+            <option value="+2348000000002">Unregistered caller (+234 800 000 0002)</option>
+          </select>
+        </label>
+        <label class="field">Nearest cell tower (in real life, the network operator provides this)
+          <select id="tower"></select>
+        </label>
+        <p class="muted small" style="margin:0">Open <a href="/dashboard" target="_blank">the responder dashboard</a> in another tab to watch alerts arrive.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="tabs" role="tablist">
+        <button class="btn" role="tab" id="tab-ussd" aria-selected="true">USSD</button>
+        <button class="btn" role="tab" id="tab-sms" aria-selected="false">SMS</button>
+      </div>
+      <div class="phone">
+        <div class="speaker"></div>
+        <div class="screen" id="screen" aria-live="polite"></div>
+        <div class="softkeys">
+          <button class="call" id="call" aria-label="Call or send">Call / Send</button>
+          <button class="end" id="end" aria-label="End">End</button>
+        </div>
+        <div class="keys" id="keys"></div>
+      </div>
+      <div class="chips" id="chips" hidden>
+        <button class="btn" data-sms="HELP">HELP</button>
+        <button class="btn" data-sms="TAIMAKO">TAIMAKO</button>
+        <button class="btn" data-sms="HELP FIRE">HELP FIRE</button>
+        <button class="btn" data-sms="HOME FC01A01KP27">HOME FC01A01KP27</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const SERVICE = '*347*112';
+    const screen = $('screen');
+
+    const KEYS = [['1', ''], ['2', 'ABC'], ['3', 'DEF'], ['4', 'GHI'], ['5', 'JKL'], ['6', 'MNO'],
+      ['7', 'PQRS'], ['8', 'TUV'], ['9', 'WXYZ'], ['*', ''], ['0', '+'], ['#', '']];
+    $('keys').innerHTML = KEYS.map(([k, l]) => `<button data-key="${k}">${k}<span>${l || '&nbsp;'}</span></button>`).join('');
+
+    fetch('/api/towers').then((r) => r.json()).then(({ towers }) => {
+      $('tower').innerHTML = towers.map((t) => `<option value="${t.id}">${t.label} (±${(t.radius_m / 1000).toFixed(1)} km)</option>`).join('');
+    });
+
+    let mode = 'ussd';
+    // ussd: idle (typing a code) | session (answering a menu) | ended (showing END message)
+    let state = 'idle';
+    let sessionId = null;
+    let text = '';
+    let sms = [];
+
+    function render(msg = '') {
+      if (mode === 'sms') {
+        screen.innerHTML = `<div class="msg sms-thread">${sms.map((m) => `<div class="bubble ${m.dir}">${esc(m.text)}</div>`).join('') || '<span class="hint">To: 32112</span>'}</div>
+          <input id="entry" aria-label="Message" placeholder="Type message…" autocomplete="off"><div class="hint">Send = Call key</div>`;
+      } else if (state === 'idle') {
+        screen.innerHTML = `<div class="msg">FindMe Emergency\n\nDial ${SERVICE}#</div><input id="entry" aria-label="Number to dial" value="${esc(msg)}" inputmode="tel" autocomplete="off">`;
+      } else if (state === 'session') {
+        screen.innerHTML = `<div class="msg">${esc(msg)}</div><input id="entry" aria-label="Your answer" autocomplete="off"><div class="hint">Send = Call key · Cancel = End</div>`;
+      } else {
+        screen.innerHTML = `<div class="msg">${esc(msg)}</div><div class="hint">Press End to finish</div>`;
+      }
+      screen.scrollTop = screen.scrollHeight;
+      const entry = $('entry');
+      if (entry) {
+        entry.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); callKey(); }
+          if (e.key === 'Escape') endKey();
+        });
+      }
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    async function ussd(answer) {
+      text = answer === null ? text : (text ? `${text}*${answer}` : answer);
+      const res = await fetch('/api/ussd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ sessionId, serviceCode: `${SERVICE}#`, phoneNumber: $('caller').value, text, towerId: $('tower').value }),
+      });
+      const reply = await res.text();
+      state = reply.startsWith('CON') ? 'session' : 'ended';
+      render(reply.slice(4));
+    }
+
+    async function callKey() {
+      const value = ($('entry')?.value || '').trim();
+      if (mode === 'sms') {
+        if (!value) return;
+        sms.push({ dir: 'out', text: value });
+        render();
+        const res = await fetch('/api/sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: $('caller').value, to: '32112', text: value, towerId: $('tower').value }),
+        });
+        const { reply } = await res.json();
+        sms.push({ dir: 'in', text: reply || 'Message not delivered.' });
+        return render();
+      }
+      if (state === 'idle') {
+        const m = value.match(/^\*347\*112((?:\*[0-9A-Za-z]+)*)#$/);
+        if (!m) return render(value), flash('Unknown code. Dial *347*112#');
+        sessionId = `sim-${Date.now()}`;
+        text = m[1].split('*').filter(Boolean).join('*');
+        state = 'session';
+        screen.querySelector('.msg').textContent = 'Connecting…';
+        return ussd(null);
+      }
+      if (state === 'session') return ussd(value);
+      endKey();
+    }
+
+    function endKey() {
+      state = 'idle';
+      text = '';
+      if (mode === 'sms') sms = [];
+      render();
+    }
+
+    function flash(msg) {
+      screen.querySelector('.msg').textContent = msg;
+    }
+
+    $('call').addEventListener('click', callKey);
+    $('end').addEventListener('click', endKey);
+    $('keys').addEventListener('click', (e) => {
+      const key = e.target.closest('button')?.dataset.key;
+      const entry = $('entry');
+      if (key && entry) {
+        entry.value += key;
+      }
+    });
+
+    document.querySelectorAll('[role=tab]').forEach((t) => t.addEventListener('click', () => {
+      mode = t.id === 'tab-sms' ? 'sms' : 'ussd';
+      document.querySelectorAll('[role=tab]').forEach((x) => x.setAttribute('aria-selected', x === t));
+      $('chips').hidden = mode !== 'sms';
+      endKey();
+    }));
+    document.querySelectorAll('[data-sms]').forEach((b) => b.addEventListener('click', () => {
+      $('entry').value = b.dataset.sms;
+      callKey();
+    }));
+
+    render();
+  </script>
+</body>
+</html>

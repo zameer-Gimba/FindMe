@@ -1,0 +1,13 @@
+{
+  "name": "findme",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Emergency alerts located by Nigeria's national postcode, for smartphones and keypad phones.",
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env dev-server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
