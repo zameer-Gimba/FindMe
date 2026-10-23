@@ -3,12 +3,13 @@
 
 import alert from '../../api/alert.js';
 import alerts from '../../api/alerts.js';
+import health from '../../api/health.js';
 import register from '../../api/register.js';
 import sms from '../../api/sms.js';
 import towers from '../../api/towers.js';
 import ussd from '../../api/ussd.js';
 
-const ROUTES = { alert, alerts, register, sms, towers, ussd };
+const ROUTES = { alert, alerts, health, register, sms, towers, ussd };
 
 async function readBody(request) {
   const type = request.headers.get('content-type') || '';
