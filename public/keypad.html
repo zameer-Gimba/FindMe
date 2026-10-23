@@ -115,6 +115,7 @@
         <button class="btn" data-sms="TAIMAKO">TAIMAKO</button>
         <button class="btn" data-sms="HELP FIRE">HELP FIRE</button>
         <button class="btn" data-sms="2">Reply 2 (Fire)</button>
+        <button class="btn" data-sms="YES">YES</button>
       </div>
     </section>
   </main>
@@ -135,7 +136,7 @@
     // Arriving from the register page: add the newly registered number as a caller.
     const params = new URLSearchParams(location.search);
     if (params.get('caller')) {
-      const opt = new Option(`${params.get('name') || 'Newly registered'} (${params.get('caller')}), home registered`, params.get('caller'), true, true);
+      const opt = new Option(`${params.get('name') || 'Newly registered'} (${params.get('caller')}), registration pending`, params.get('caller'), true, true);
       $('caller').add(opt, 0);
     }
 
@@ -243,7 +244,14 @@
       callKey();
     }));
 
-    render();
+    // Arriving with a confirmation SMS: show it in the inbox, ready to reply YES.
+    if (params.get('sms')) {
+      $('tab-sms').click();
+      sms = [{ dir: 'in', text: params.get('sms') }];
+      render();
+    } else {
+      render();
+    }
   </script>
 </body>
 </html>

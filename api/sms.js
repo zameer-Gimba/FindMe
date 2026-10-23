@@ -1,11 +1,13 @@
 import { createAlert, normalizePhone, summary, TYPES } from '../lib/alerts.js';
-import { listAlerts, updateAlert } from '../lib/store.js';
+import { deleteHome, getHome, listAlerts, saveHome, updateAlert } from '../lib/store.js';
+import { sendSms } from '../lib/sms.js';
 
 // Africa's Talking incoming-SMS callback (from, to, text). People text the
 // free short code 112 from any phone, in English, Pidgin, Hausa, Yoruba or Igbo:
 //   "HELP", "SOS", "TAIMAKO", "EGBA MI", "NYEM AKA"  -> alert
 //   add FIRE / MEDICAL / ACCIDENT / ATTACK to say what kind, or
 //   reply with 1–5 afterwards to set the kind of emergency.
+//   "YES" / "NO" confirms or rejects a pending home registration.
 
 const HELP_WORDS = ['HELP', 'SOS', 'TAIMAKO', 'EGBA MI', 'EGBAMI', 'NYEM AKA', 'NYEMAKA', 'EMERGENCY'];
 const TYPE_WORDS = {
@@ -26,8 +28,27 @@ function detectType(text) {
   return null;
 }
 
+const YES = ['YES', 'Y', 'EH', 'BEENI', 'EE'];
+const NO = ['NO', 'N', 'AA', 'RARA', 'MBA'];
+
 export async function respond({ from, text, towerId }) {
   const t = String(text || '').toUpperCase().trim();
+  const word = t.replace(/[^A-Z]/g, '');
+
+  // Reply to a home-registration request. The reply coming from this number
+  // proves the owner of the phone agreed.
+  if (YES.includes(word) || NO.includes(word)) {
+    const phone = normalizePhone(from);
+    const home = await getHome(phone, { includePending: true });
+    if (home?.status === 'pending') {
+      if (NO.includes(word)) {
+        await deleteHome(phone);
+        return 'FindMe: registration cancelled. Nothing was saved.';
+      }
+      await saveHome(phone, { ...home, status: 'confirmed', confirmedAt: new Date().toISOString() });
+      return 'FindMe: your home is confirmed. If you call for help, responders will know where you live.';
+    }
+  }
 
   // A lone number right after an alert says what kind of emergency it is.
   if (/^[1-5]$/.test(t)) {
@@ -49,18 +70,6 @@ export async function respond({ from, text, towerId }) {
   const alert = await createAlert({ source: 'sms', type: type || 'unknown', phone: from, towerId, note: text });
   const reply = `FindMe: help is coming. Alert ${alert.id}. ${summary(alert)}.`;
   return type ? `${reply} Stay safe.` : `${reply} ${ASK_TYPE}`;
-}
-
-// Optional: reply by SMS when Africa's Talking credentials are configured.
-async function sendSms(to, message) {
-  const { AT_USERNAME, AT_API_KEY } = process.env;
-  if (!AT_USERNAME || !AT_API_KEY || !to) return;
-  const host = AT_USERNAME === 'sandbox' ? 'api.sandbox.africastalking.com' : 'api.africastalking.com';
-  await fetch(`https://${host}/version1/messaging`, {
-    method: 'POST',
-    headers: { apiKey: AT_API_KEY, Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ username: AT_USERNAME, to, message }),
-  }).catch((e) => console.error('SMS reply failed:', e.message));
 }
 
 export default async function handler(req, res) {

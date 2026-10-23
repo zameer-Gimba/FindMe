@@ -17,6 +17,7 @@
     .done { display: none; margin-top: 16px; }
     .done.show { display: block; }
     .done .big { font-size: 1.4rem; margin: 6px 0 2px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -37,7 +38,8 @@
       <ol class="steps">
         <li>Anyone with a smartphone can do it: the owner, a family member, the ward head, a health worker or a NIPOST agent.</li>
         <li>Enter the phone number the person uses, even a keypad phone.</li>
-        <li>When that number calls for help, responders see this home and its directions.</li>
+        <li>Check the postcode we found is the right house, then save.</li>
+        <li>That phone gets an SMS and replies <b>YES</b> to confirm. Nothing is shown to responders before that.</li>
       </ol>
       <div class="private"><span aria-hidden="true">🔒</span><span><b>Private.</b> Only security and emergency agencies can see this, and only when this number sends an alert.</span></div>
 
@@ -66,16 +68,28 @@
         <label class="check"><input type="checkbox" name="demo" checked>
           <span>Demo location: pretend I'm at a test address in Abuja</span>
         </label>
-        <button class="btn primary" type="submit">Use my location and save</button>
+        <button class="btn primary" type="submit">Find my postcode</button>
         <p class="msg" id="msg" role="status" aria-live="polite"></p>
       </form>
 
+      <div class="done" id="check">
+        <span class="badge amber">Is this the right house?</span>
+        <div class="big postcode" id="c-code"></div>
+        <div id="c-place"></div>
+        <p class="muted small" id="c-meta"></p>
+        <div class="row">
+          <button class="btn primary" id="c-yes">Yes, save it</button>
+          <button class="btn" id="c-no">No, try again</button>
+        </div>
+      </div>
+
       <div class="done" id="done">
-        <span class="badge green">Home saved</span>
+        <span class="badge amber">Waiting for SMS confirmation</span>
         <div class="big postcode" id="d-code"></div>
         <div id="d-place"></div>
         <p class="muted small" id="d-meta"></p>
-        <a class="btn" id="d-try" href="/keypad">Try an alert from this number</a>
+        <p class="small" id="d-sms"></p>
+        <a class="btn" id="d-try" href="/keypad">Open that phone to reply YES</a>
       </div>
     </section>
   </main>
@@ -92,48 +106,81 @@
       });
     }
 
+    const $ = (id) => document.getElementById(id);
+    const place = (h) => [h.names?.lga, h.names?.state].filter(Boolean).join(', ');
+    let pending = null;
+
+    async function post(data) {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error);
+      return body;
+    }
+
+    function fail(text) {
+      msg.className = 'msg error';
+      msg.textContent = text;
+    }
+
+    // Step 1: find the postcode at this spot and let the person check it.
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(form));
       data.consent = Boolean(data.consent);
       data.demo = Boolean(data.demo);
       msg.className = 'msg';
-      if (!data.consent) {
-        msg.className = 'msg error';
-        msg.textContent = 'Please confirm the owner agrees.';
-        return;
-      }
+      $('check').classList.remove('show');
+      $('done').classList.remove('show');
+      if (!data.consent) return fail('Please confirm the owner agrees.');
       if (!data.demo) {
         msg.textContent = 'Getting your location…';
         const c = await locate();
-        if (!c) {
-          msg.className = 'msg error';
-          msg.textContent = 'Could not get GPS. Turn on location and try again.';
-          return;
-        }
+        if (!c) return fail('Could not get GPS. Turn on location and try again.');
+        if (c.accuracy > 50) msg.textContent = `GPS is weak (±${Math.round(c.accuracy)} m). Step outside for a better fix.`;
         data.lat = c.latitude;
         data.lng = c.longitude;
       }
-      msg.textContent = 'Saving…';
       try {
-        const res = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.error);
-        const h = body.home;
-        document.getElementById('d-code').textContent = h.display;
-        document.getElementById('d-place').textContent = [h.names?.lga, h.names?.state].filter(Boolean).join(', ');
-        document.getElementById('d-meta').textContent = `${h.name || 'Home'} · ${body.phone}${h.landmark ? ` · ${h.landmark}` : ''}`;
-        document.getElementById('d-try').href = `/keypad?caller=${encodeURIComponent(body.phone)}&name=${encodeURIComponent(h.name || '')}`;
-        document.getElementById('done').classList.add('show');
+        const { home } = await post({ ...data, preview: true });
+        pending = data;
+        $('c-code').textContent = home.display;
+        $('c-place').textContent = place(home);
+        const dist = home.distance_m != null ? `Nearest building, ${Math.round(home.distance_m)} m from you` : '';
+        $('c-meta').textContent = [dist, home.address].filter(Boolean).join(' · ');
+        $('check').classList.add('show');
         msg.textContent = '';
-        form.reset();
       } catch (err) {
-        msg.className = 'msg error';
-        msg.textContent = err.message || 'Could not save. Please try again.';
+        fail(err.message || 'Could not find a postcode. Please try again.');
+      }
+    });
+
+    $('c-no').addEventListener('click', () => {
+      $('check').classList.remove('show');
+      msg.className = 'msg';
+      msg.textContent = 'Move closer to the house (outside is best) and tap Find my postcode again.';
+    });
+
+    // Step 2: save as pending; the phone's owner confirms by replying YES.
+    $('c-yes').addEventListener('click', async () => {
+      if (!pending) return;
+      try {
+        const body = await post(pending);
+        const h = body.home;
+        $('d-code').textContent = h.display;
+        $('d-place').textContent = place(h);
+        $('d-meta').textContent = `${h.name || 'Home'} · ${body.phone}${h.landmark ? ` · ${h.landmark}` : ''}`;
+        $('d-sms').textContent = `SMS ${body.sent ? 'sent' : 'to send'} to ${body.phone}: "${body.sms}"`;
+        $('d-try').href = `/keypad?caller=${encodeURIComponent(body.phone)}&name=${encodeURIComponent(h.name || '')}&sms=${encodeURIComponent(body.sms)}`;
+        $('check').classList.remove('show');
+        $('done').classList.add('show');
+        form.reset();
+        pending = null;
+      } catch (err) {
+        fail(err.message || 'Could not save. Please try again.');
       }
     });
   </script>

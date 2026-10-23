@@ -13,7 +13,7 @@ FindMe works for everyone:
 | Smartphone user (city or village) | Tap the big **HELP** button | Phone GPS → postcode (reverse geocode) |
 | Keypad phone, no data | Dial `*347*112#` and choose 1–5, or add the number to go at once (`*347*112*2#` = fire) | Cell tower from the network operator → postcode area |
 | Keypad phone, SMS | Text `HELP`, `TAIMAKO`, `EGBA MI` or `NYEM AKA` to **112** (free), then reply 1–5 for the kind of emergency | Cell tower → postcode area |
-| Anyone, ahead of time | A family member, ward head, health worker or NIPOST agent stands at the house and registers it at `/register`. GPS finds the postcode, so nobody needs to know it | Home postcode and directions shown to responders, only when that number sends an alert |
+| Anyone, ahead of time | A family member, ward head, health worker or NIPOST agent stands at the house and registers it at `/register`. GPS finds the postcode, so nobody needs to know it. The phone gets an SMS and replies YES to confirm | Home postcode and directions shown to responders, only when that number sends an alert |
 
 Responders see every alert live on a map at `/dashboard`: the kind of emergency,
 postcode, LGA and state, who is calling (registered or unknown) and, for
@@ -23,7 +23,7 @@ registered callers, their home postcode and directions.
 
 - `/`: smartphone HELP button (3-second countdown so it is never sent by accident)
 - `/keypad`: keypad-phone simulator for USSD and SMS, with simulated cell towers in FCT, Zamfara, Borno and Kogi
-- `/register`: register a home for emergencies from GPS, with consent
+- `/register`: register a home for emergencies from GPS: check it's the right house, then the phone confirms by replying YES to an SMS
 - `/dashboard`: responder dashboard with map, sound alert and Respond/Resolve
 
 ## How it uses the Postcode API
