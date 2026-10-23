@@ -1,4 +1,4 @@
-// Local stand-in for Vercel: serves public/ and runs api/*.js handlers.
+// Local stand-in for Netlify: serves public/ and runs api/*.js handlers.
 // Usage: npm run dev  (then open http://localhost:3000)
 
 import http from 'node:http';

@@ -35,28 +35,28 @@ Without a key the app runs in **demo mode** on the public sandbox postcodes, so 
 
 ## Run it locally
 
-Needs Node.js 20 or newer. No packages to install.
+Needs Node.js 20 or newer.
 
 ```bash
+npm install
 cp .env.example .env   # optional: add POSTCODE_API_KEY
 npm run dev            # http://localhost:3000
 ```
 
-## Deploy to Vercel
+## Deploy to Netlify (free)
 
-1. Import this repo in Vercel (framework preset: **Other**). No build command needed.
-2. **Settings → Environment Variables**: add `POSTCODE_API_KEY` (your NIPOST *secret* key).
-3. **Storage → Marketplace → Upstash for Redis**: connect it to the project. This
-   fills in `KV_REST_API_URL` and `KV_REST_API_TOKEN` so all alerts reach the dashboard.
-   (Without it, alerts are kept in memory and may not show up across serverless instances.)
-4. Redeploy.
+1. On Netlify: **Add new project → Import an existing project → GitHub** and pick this repo.
+   The settings come from `netlify.toml`, so leave the build command empty and click **Deploy**.
+2. **Project configuration → Environment variables**: add `POSTCODE_API_KEY` (your NIPOST *secret* key), then redeploy.
+
+Alerts are stored in Netlify Blobs, which is built in and free, so there's nothing else to set up.
 
 ## Real USSD and SMS (optional)
 
 With an [Africa's Talking](https://africastalking.com) sandbox account:
 
-- USSD callback URL: `https://YOUR-APP.vercel.app/api/ussd`
-- Incoming SMS callback URL: `https://YOUR-APP.vercel.app/api/sms`
+- USSD callback URL: `https://YOUR-SITE.netlify.app/api/ussd`
+- Incoming SMS callback URL: `https://YOUR-SITE.netlify.app/api/sms`
 - Set `AT_USERNAME=sandbox` and `AT_API_KEY` to send SMS replies.
 
 Africa's Talking does not send the caller's tower, so real calls use `DEFAULT_TOWER`.
@@ -73,8 +73,9 @@ In production the network operator would supply it.
 ## Project layout
 
 ```
-api/        Vercel serverless functions (alert, alerts, ussd, sms, towers)
+api/        Request handlers (alert, alerts, ussd, sms, towers)
+netlify/    Netlify function that routes /api/* to the handlers
 lib/        Postcode API client, alert logic, storage, simulated towers
 public/     The three pages (plain HTML, CSS and JavaScript)
-dev-server.js  Local stand-in for Vercel
+dev-server.js  Local stand-in for Netlify
 ```
