@@ -1,4 +1,4 @@
-import { clearAlerts, listAlerts, setStatus } from '../lib/store.js';
+import { clearAlerts, listAlerts, updateAlert } from '../lib/store.js';
 
 const STATUSES = ['new', 'acknowledged', 'resolved'];
 
@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     if (req.method === 'PATCH') {
       const { id, status } = req.body || {};
       if (!id || !STATUSES.includes(status)) return res.status(400).json({ error: 'id and a valid status are required' });
-      await setStatus(id, status);
+      await updateAlert(id, { status });
       return res.status(200).json({ ok: true });
     }
     if (req.method === 'DELETE') {

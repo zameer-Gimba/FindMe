@@ -26,7 +26,8 @@
     .alert.fresh { animation: flash 1.2s ease-out 2; }
     @keyframes flash { 30% { background: var(--red-soft); } }
     @media (prefers-reduced-motion: reduce) { .alert.fresh { animation: none; } }
-    .alert h3 { margin: 6px 0 2px; font-size: 1rem; }
+    .alert h3 { margin: 6px 0 2px; font-size: 1.05rem; }
+    .alert .caller { margin-bottom: 4px; }
     .alert .head { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .alert .time { margin-left: auto; font-size: 0.8rem; color: var(--muted); }
     .alert .code { font-size: 1.1rem; }
@@ -44,6 +45,7 @@
     <nav class="nav">
       <a href="/">Smartphone</a>
       <a href="/keypad">Keypad phone</a>
+      <a href="/register">Register home</a>
       <a href="/dashboard" aria-current="page">Responders</a>
     </nav>
   </header>
@@ -68,6 +70,7 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const SOURCES = { app: 'Smartphone GPS', ussd: 'Keypad phone · USSD', sms: 'Keypad phone · SMS' };
+    const TYPE_ICONS = { attack: '🚨', fire: '🔥', medical: '🚑', accident: '💥', other: '⚠️', unknown: '❔' };
     const STATUS = { new: ['New', 'red'], acknowledged: ['Responding', 'amber'], resolved: ['Resolved', 'green'] };
 
     const map = L.map('map').setView([9.0765, 7.3986], 6);
@@ -112,12 +115,13 @@
           <span class="badge">${esc(SOURCES[a.source] || a.source)}</span>
           <span class="time">${ago(a.createdAt)}</span>
         </div>
-        <h3>${esc(a.typeLabel)} · ${esc(a.id)}</h3>
-        <div>${code}</div>
+        <h3><span aria-hidden="true">${TYPE_ICONS[a.type] || '⚠️'}</span> ${esc(a.typeLabel)} <span class="muted small">${esc(a.id)}</span></h3>
+        <div class="caller">${a.home?.name ? `<b>${esc(a.home.name)}</b> · registered` : a.phone ? '<b>Unknown caller</b> · not registered' : '<b>Anonymous</b>'}</div>
+        <div><span class="muted small">Postcode</span> ${code}</div>
         <div>${esc(place(a.postcode)) || '<span class="muted">Area unknown</span>'}</div>
         <dl>
           <dt>Location</dt><dd>${where}</dd>
-          ${a.home ? `<dt>Home</dt><dd><span class="postcode">${esc(a.home.display)}</span> ${esc(place(a.home))}<br><span class="muted small">${esc(a.home.name || '')}${a.home.name ? ' · ' : ''}saved by ${esc(a.home.registeredBy)}</span></dd>` : ''}
+          ${a.home ? `<dt>Home</dt><dd><span class="postcode">${esc(a.home.display)}</span> ${esc(place(a.home))}${a.home.landmark ? `<br>${esc(a.home.landmark)}` : ''}<br><span class="muted small">Registered by ${esc(a.home.registeredBy)}</span></dd>` : ''}
           ${a.phone ? `<dt>Phone</dt><dd><a href="tel:${esc(a.phone)}">${esc(a.phone)}</a></dd>` : ''}
           ${a.note ? `<dt>Message</dt><dd>${esc(a.note)}</dd>` : ''}
         </dl>

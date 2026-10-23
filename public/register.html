@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FindMe: Register a Home</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    h1 { margin: 0 0 6px; font-size: 1.4rem; letter-spacing: -0.02em; }
+    .steps { margin: 12px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.9rem; }
+    form { display: grid; gap: 14px; margin-top: 16px; }
+    .check { display: flex; gap: 8px; align-items: flex-start; font-size: 0.9rem; }
+    .private { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; padding: 12px; border-radius: 10px; background: var(--green-soft); color: var(--text); font-size: 0.9rem; }
+    .private b { color: var(--green); }
+    .msg { min-height: 1.4em; font-weight: 650; }
+    .msg.error { color: var(--red); }
+    .done { display: none; margin-top: 16px; }
+    .done.show { display: block; }
+    .done .big { font-size: 1.4rem; margin: 6px 0 2px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-dot"></span>FindMe</a>
+    <nav class="nav">
+      <a href="/">Smartphone</a>
+      <a href="/keypad">Keypad phone</a>
+      <a href="/register" aria-current="page">Register home</a>
+      <a href="/dashboard">Responders</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h1>Register a home for emergencies</h1>
+      <p class="muted" style="margin:0">Most people don't know their postcode, and they don't need to. Stand at the house and we find it from GPS.</p>
+      <ol class="steps">
+        <li>Anyone with a smartphone can do it: the owner, a family member, the ward head, a health worker or a NIPOST agent.</li>
+        <li>Enter the phone number the person uses, even a keypad phone.</li>
+        <li>When that number calls for help, responders see this home and its directions.</li>
+      </ol>
+      <div class="private"><span aria-hidden="true">🔒</span><span><b>Private.</b> Only security and emergency agencies can see this, and only when this number sends an alert.</span></div>
+
+      <form id="form" novalidate>
+        <label class="field">Name of the person
+          <input type="text" name="name" placeholder="e.g. Aisha Bello" autocomplete="off">
+        </label>
+        <label class="field">Their phone number (keypad phones are fine)
+          <input type="tel" name="phone" placeholder="0803 000 0000" required>
+        </label>
+        <label class="field">Directions or landmark
+          <textarea name="landmark" rows="2" placeholder="e.g. Blue gate behind the central mosque, opposite the borehole"></textarea>
+        </label>
+        <label class="field">Who is registering?
+          <select name="registeredBy">
+            <option>Owner</option>
+            <option>Family member</option>
+            <option>Ward / village head</option>
+            <option>Community health worker</option>
+            <option>NIPOST agent</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" name="consent">
+          <span>The owner agrees to share this home with emergency responders.</span>
+        </label>
+        <label class="check"><input type="checkbox" name="demo" checked>
+          <span>Demo location: pretend I'm at a test address in Abuja</span>
+        </label>
+        <button class="btn primary" type="submit">Use my location and save</button>
+        <p class="msg" id="msg" role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="done" id="done">
+        <span class="badge green">Home saved</span>
+        <div class="big postcode" id="d-code"></div>
+        <div id="d-place"></div>
+        <p class="muted small" id="d-meta"></p>
+        <a class="btn" id="d-try" href="/keypad">Try an alert from this number</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('form');
+    const msg = document.getElementById('msg');
+
+    function locate() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition((p) => resolve(p.coords), () => resolve(null),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      data.consent = Boolean(data.consent);
+      data.demo = Boolean(data.demo);
+      msg.className = 'msg';
+      if (!data.consent) {
+        msg.className = 'msg error';
+        msg.textContent = 'Please confirm the owner agrees.';
+        return;
+      }
+      if (!data.demo) {
+        msg.textContent = 'Getting your location…';
+        const c = await locate();
+        if (!c) {
+          msg.className = 'msg error';
+          msg.textContent = 'Could not get GPS. Turn on location and try again.';
+          return;
+        }
+        data.lat = c.latitude;
+        data.lng = c.longitude;
+      }
+      msg.textContent = 'Saving…';
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error);
+        const h = body.home;
+        document.getElementById('d-code').textContent = h.display;
+        document.getElementById('d-place').textContent = [h.names?.lga, h.names?.state].filter(Boolean).join(', ');
+        document.getElementById('d-meta').textContent = `${h.name || 'Home'} · ${body.phone}${h.landmark ? ` · ${h.landmark}` : ''}`;
+        document.getElementById('d-try').href = `/keypad?caller=${encodeURIComponent(body.phone)}&name=${encodeURIComponent(h.name || '')}`;
+        document.getElementById('done').classList.add('show');
+        msg.textContent = '';
+        form.reset();
+      } catch (err) {
+        msg.className = 'msg error';
+        msg.textContent = err.message || 'Could not save. Please try again.';
+      }
+    });
+  </script>
+</body>
+</html>

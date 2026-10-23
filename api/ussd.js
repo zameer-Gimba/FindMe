@@ -1,6 +1,4 @@
-import { createAlert, normalizePhone } from '../lib/alerts.js';
-import { saveHome } from '../lib/store.js';
-import { isValid, parse } from '../lib/postcode.js';
+import { createAlert } from '../lib/alerts.js';
 
 // Africa's Talking USSD callback. It posts sessionId, serviceCode, phoneNumber
 // and text (all answers so far joined by "*"); we reply with "CON ..." to keep
@@ -16,8 +14,7 @@ const MAIN =
   '2. Fire\n' +
   '3. Medical\n' +
   '4. Accident\n' +
-  '5. Other\n' +
-  '6. Save home postcode';
+  '5. Other';
 
 export async function respond({ phoneNumber, text, towerId }) {
   const parts = String(text || '').split('*').filter((p) => p !== '');
@@ -29,20 +26,6 @@ export async function respond({ phoneNumber, text, towerId }) {
   if (n >= 1 && n <= 5) {
     const alert = await createAlert({ source: 'ussd', type: MENU[n - 1], phone: phoneNumber, towerId });
     return `END HELP IS COMING.\nAlert ${alert.id} sent with your location.\nStay safe. Keep your phone on.`;
-  }
-
-  if (choice === '6') {
-    if (parts.length < 2) return 'CON Enter home postcode\n(e.g. FC01A01KP27):';
-    const p = parse(parts.slice(1).join(''));
-    if (!p) return 'END That postcode is not valid.\nIt looks like FC01A01KP27.\nDial again to retry.';
-    const valid = await isValid(p.code);
-    if (valid === false) return `END ${p.display} was not found.\nCheck it and dial again.`;
-    await saveHome(normalizePhone(phoneNumber), {
-      postcode: p.code,
-      registeredBy: 'Self (USSD)',
-      registeredAt: new Date().toISOString(),
-    });
-    return `END Saved: ${p.display}\nResponders will see it when you call for help.`;
   }
 
   return 'END Invalid choice. Dial again.';

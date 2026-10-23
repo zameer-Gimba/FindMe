@@ -67,6 +67,7 @@
     <nav class="nav">
       <a href="/">Smartphone</a>
       <a href="/keypad" aria-current="page">Keypad phone</a>
+      <a href="/register">Register home</a>
       <a href="/dashboard">Responders</a>
     </nav>
   </header>
@@ -76,16 +77,16 @@
       <h1>No smartphone? No data? No problem.</h1>
       <p class="muted">This simulates a basic keypad phone. No GPS or internet is needed: the mobile network already knows which tower the phone is on.</p>
       <ol class="how">
-        <li>Dial <code>*347*112#</code> and press <b>Call</b>. Then choose 1–5.</li>
-        <li>Fastest way: dial <code>*347*112*1#</code> to send an attack alert at once.</li>
-        <li>Or send an SMS: <code>HELP</code>, <code>TAIMAKO</code>, <code>EGBA MI</code> or <code>NYEM AKA</code>.</li>
-        <li>Option 6 or SMS <code>HOME FC01A01KP27</code> saves a home postcode once, so responders know where you live.</li>
+        <li>Dial <code>*347*112#</code> and press <b>Call</b>. Then choose the emergency: 1 Attack, 2 Fire, 3 Medical, 4 Accident, 5 Other.</li>
+        <li>Fastest way: put the number of the emergency before the <code>#</code>, and the alert goes at once. For example <code>*347*112*2#</code> sends a fire alert.</li>
+        <li>Or send an SMS to <b>112</b> (free): <code>HELP</code>, <code>TAIMAKO</code>, <code>EGBA MI</code> or <code>NYEM AKA</code>. Add a word like <code>FIRE</code>, or reply with the number when asked.</li>
+        <li>If the person's home was <a href="/register">registered</a>, responders also see the home address and directions.</li>
       </ol>
       <div class="controls">
         <label class="field">Caller
           <select id="caller">
-            <option value="+2348000000001">Mama Aisha (+234 800 000 0001), home postcode saved</option>
-            <option value="+2348000000002">Unregistered caller (+234 800 000 0002)</option>
+            <option value="+2348000000001">Mama Aisha (+234 800 000 0001), home registered</option>
+            <option value="+2348000000002">Unknown caller (+234 800 000 0002), not registered</option>
           </select>
         </label>
         <label class="field">Nearest cell tower (in real life, the network operator provides this)
@@ -113,7 +114,7 @@
         <button class="btn" data-sms="HELP">HELP</button>
         <button class="btn" data-sms="TAIMAKO">TAIMAKO</button>
         <button class="btn" data-sms="HELP FIRE">HELP FIRE</button>
-        <button class="btn" data-sms="HOME FC01A01KP27">HOME FC01A01KP27</button>
+        <button class="btn" data-sms="2">Reply 2 (Fire)</button>
       </div>
     </section>
   </main>
@@ -131,6 +132,13 @@
       $('tower').innerHTML = towers.map((t) => `<option value="${t.id}">${t.label} (±${(t.radius_m / 1000).toFixed(1)} km)</option>`).join('');
     });
 
+    // Arriving from the register page: add the newly registered number as a caller.
+    const params = new URLSearchParams(location.search);
+    if (params.get('caller')) {
+      const opt = new Option(`${params.get('name') || 'Newly registered'} (${params.get('caller')}), home registered`, params.get('caller'), true, true);
+      $('caller').add(opt, 0);
+    }
+
     let mode = 'ussd';
     // ussd: idle (typing a code) | session (answering a menu) | ended (showing END message)
     let state = 'idle';
@@ -140,7 +148,7 @@
 
     function render(msg = '') {
       if (mode === 'sms') {
-        screen.innerHTML = `<div class="msg sms-thread">${sms.map((m) => `<div class="bubble ${m.dir}">${esc(m.text)}</div>`).join('') || '<span class="hint">To: 32112</span>'}</div>
+        screen.innerHTML = `<div class="msg sms-thread">${sms.map((m) => `<div class="bubble ${m.dir}">${esc(m.text)}</div>`).join('') || '<span class="hint">To: 112 (free)</span>'}</div>
           <input id="entry" aria-label="Message" placeholder="Type message…" autocomplete="off"><div class="hint">Send = Call key</div>`;
       } else if (state === 'idle') {
         screen.innerHTML = `<div class="msg">FindMe Emergency\n\nDial ${SERVICE}#</div><input id="entry" aria-label="Number to dial" value="${esc(msg)}" inputmode="tel" autocomplete="off">`;
@@ -184,7 +192,7 @@
         const res = await fetch('/api/sms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: $('caller').value, to: '32112', text: value, towerId: $('tower').value }),
+          body: JSON.stringify({ from: $('caller').value, to: '112', text: value, towerId: $('tower').value }),
         });
         const { reply } = await res.json();
         sms.push({ dir: 'in', text: reply || 'Message not delivered.' });

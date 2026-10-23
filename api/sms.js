@@ -1,20 +1,22 @@
-import { createAlert, normalizePhone, summary } from '../lib/alerts.js';
-import { saveHome } from '../lib/store.js';
-import { isValid, parse } from '../lib/postcode.js';
+import { createAlert, normalizePhone, summary, TYPES } from '../lib/alerts.js';
+import { listAlerts, updateAlert } from '../lib/store.js';
 
-// Africa's Talking incoming-SMS callback (from, to, text). Works on any phone,
-// in English, Pidgin, Hausa, Yoruba or Igbo:
+// Africa's Talking incoming-SMS callback (from, to, text). People text the
+// free short code 112 from any phone, in English, Pidgin, Hausa, Yoruba or Igbo:
 //   "HELP", "SOS", "TAIMAKO", "EGBA MI", "NYEM AKA"  -> alert
-//   add FIRE / MEDICAL / ACCIDENT / ATTACK to say what kind
-//   "HOME FC01A01KP27"                               -> save home postcode
+//   add FIRE / MEDICAL / ACCIDENT / ATTACK to say what kind, or
+//   reply with 1–5 afterwards to set the kind of emergency.
 
 const HELP_WORDS = ['HELP', 'SOS', 'TAIMAKO', 'EGBA MI', 'EGBAMI', 'NYEM AKA', 'NYEMAKA', 'EMERGENCY'];
 const TYPE_WORDS = {
-  attack: ['ATTACK', 'KIDNAP', 'GUN', 'BANDIT', 'THIEF', 'ROBBER'],
+  attack: ['ATTACK', 'KIDNAP', 'GUN', 'BANDIT', 'BANDITS', 'THIEF', 'ROBBER', 'ROBBERS'],
   fire: ['FIRE', 'WUTA', 'INA', 'OKU'],
-  medical: ['MEDICAL', 'SICK', 'BLEED', 'PREGNANT', 'LABOUR', 'BABY'],
+  medical: ['MEDICAL', 'SICK', 'BLEED', 'BLEEDING', 'PREGNANT', 'LABOUR', 'BABY'],
   accident: ['ACCIDENT', 'CRASH'],
 };
+const BY_NUMBER = ['attack', 'fire', 'medical', 'accident', 'other'];
+const ASK_TYPE = 'Reply 1 Attack/Kidnap, 2 Fire, 3 Medical, 4 Accident, 5 Other.';
+const FOLLOW_UP_MS = 30 * 60 * 1000;
 
 function detectType(text) {
   const tokens = text.split(/[^A-Z]+/);
@@ -27,20 +29,26 @@ function detectType(text) {
 export async function respond({ from, text, towerId }) {
   const t = String(text || '').toUpperCase().trim();
 
-  if (t.startsWith('HOME')) {
-    const p = parse(t.slice(4));
-    if (!p) return 'FindMe: send HOME then your postcode, e.g. HOME FC01A01KP27';
-    if ((await isValid(p.code)) === false) return `FindMe: ${p.display} was not found. Please check it.`;
-    await saveHome(normalizePhone(from), { postcode: p.code, registeredBy: 'Self (SMS)', registeredAt: new Date().toISOString() });
-    return `FindMe: home postcode ${p.display} saved.`;
+  // A lone number right after an alert says what kind of emergency it is.
+  if (/^[1-5]$/.test(t)) {
+    const phone = normalizePhone(from);
+    const recent = (await listAlerts()).find(
+      (a) => a.phone === phone && Date.now() - Date.parse(a.createdAt) < FOLLOW_UP_MS,
+    );
+    if (recent) {
+      const type = BY_NUMBER[Number(t) - 1];
+      await updateAlert(recent.id, { type, typeLabel: TYPES[type] });
+      return `FindMe: alert ${recent.id} updated to ${TYPES[type]}. Help is coming.`;
+    }
   }
 
   const type = detectType(t);
   if (!type && !HELP_WORDS.some((w) => t.includes(w))) {
-    return 'FindMe: to ask for help, send HELP (or TAIMAKO, EGBA MI, NYEM AKA).';
+    return 'FindMe: to ask for help, send HELP (or TAIMAKO, EGBA MI, NYEM AKA) to 112.';
   }
-  const alert = await createAlert({ source: 'sms', type: type || 'other', phone: from, towerId, note: text });
-  return `FindMe: help is coming. Alert ${alert.id}. ${summary(alert)}. Stay safe.`;
+  const alert = await createAlert({ source: 'sms', type: type || 'unknown', phone: from, towerId, note: text });
+  const reply = `FindMe: help is coming. Alert ${alert.id}. ${summary(alert)}.`;
+  return type ? `${reply} Stay safe.` : `${reply} ${ASK_TYPE}`;
 }
 
 // Optional: reply by SMS when Africa's Talking credentials are configured.
