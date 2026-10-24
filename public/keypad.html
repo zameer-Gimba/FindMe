@@ -16,7 +16,6 @@
 
     h1 { margin: 0 0 6px; font-size: 1.4rem; letter-spacing: -0.02em; }
     .intro p { margin: 0 0 12px; }
-    .controls { display: grid; gap: 12px; margin-top: 12px; }
     .how { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.9rem; }
     code { font-family: ui-monospace, Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
 
@@ -87,18 +86,7 @@
         <li>Or send an SMS to <b>112</b> (free): <code>HELP</code>, <code>TAIMAKO</code>, <code>EGBA MI</code> or <code>NYEM AKA</code>. Add a word like <code>FIRE</code>, or reply with the number when asked.</li>
         <li>If the person's home was <a href="/register">registered</a>, responders also see the home address and directions.</li>
       </ol>
-      <div class="controls">
-        <label class="field">Caller
-          <select id="caller">
-            <option value="+2348000000001">Mama Aisha (+234 800 000 0001), home registered</option>
-            <option value="+2348000000002">Unknown caller (+234 800 000 0002), not registered</option>
-          </select>
-        </label>
-        <label class="field">Nearest cell tower (in real life, the network operator provides this)
-          <select id="tower"></select>
-        </label>
-        <p class="muted small" style="margin:0">Open <a href="/dashboard" target="_blank">the responder dashboard</a> in another tab to watch alerts arrive.</p>
-      </div>
+      <p class="muted small" style="margin:12px 0 0">Open <a href="/dashboard" target="_blank">the responder dashboard</a> in another tab to watch alerts arrive.</p>
     </section>
 
     <section>
@@ -134,16 +122,12 @@
       ['7', 'PQRS'], ['8', 'TUV'], ['9', 'WXYZ'], ['*', ''], ['0', '+'], ['#', '']];
     $('keys').innerHTML = KEYS.map(([k, l]) => `<button data-key="${k}">${k}<span>${l || '&nbsp;'}</span></button>`).join('');
 
-    fetch('/api/towers').then((r) => r.json()).then(({ towers }) => {
-      $('tower').innerHTML = towers.map((t) => `<option value="${t.id}">${t.label} (±${(t.radius_m / 1000).toFixed(1)} km)</option>`).join('');
-    });
-
-    // Arriving from the register page: add the newly registered number as a caller.
+    // The phone's number and tower come from the network, not the user. The demo
+    // phone is Mama Aisha's; the register page can pass a newly registered number,
+    // and ?tower=ZAM-TSAFE (or BOR-GWOZA, KOG-LOKOJA, ABJ-KUJE) shows a rural tower.
     const params = new URLSearchParams(location.search);
-    if (params.get('caller')) {
-      const opt = new Option(`${params.get('name') || 'Newly registered'} (${params.get('caller')}), registration pending`, params.get('caller'), true, true);
-      $('caller').add(opt, 0);
-    }
+    const CALLER = params.get('caller') || '+2348000000001';
+    const TOWER = params.get('tower') || 'ABJ-WUSE';
 
     let mode = 'ussd';
     // ussd: idle (typing a code) | session (answering a menu) | ended (showing END message)
@@ -182,7 +166,7 @@
       const res = await fetch('/api/ussd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ sessionId, serviceCode: `${SERVICE}#`, phoneNumber: $('caller').value, text, towerId: $('tower').value }),
+        body: new URLSearchParams({ sessionId, serviceCode: `${SERVICE}#`, phoneNumber: CALLER, text, towerId: TOWER }),
       });
       const reply = await res.text();
       state = reply.startsWith('CON') ? 'session' : 'ended';
@@ -198,7 +182,7 @@
         const res = await fetch('/api/sms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: $('caller').value, to: '112', text: value, towerId: $('tower').value }),
+          body: JSON.stringify({ from: CALLER, to: '112', text: value, towerId: TOWER }),
         });
         const { reply } = await res.json();
         sms.push({ dir: 'in', text: reply || 'Message not delivered.' });
