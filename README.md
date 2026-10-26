@@ -25,6 +25,7 @@ registered callers, their home postcode and directions.
 - `/keypad`: keypad-phone simulator for USSD and SMS, with simulated cell towers in FCT, Zamfara, Borno and Kogi
 - `/register`: register a home for emergencies from GPS: check it's the right house, then the phone confirms by replying YES to an SMS
 - `/dashboard`: responder dashboard with map, sound alert and Respond/Resolve
+- `/privacy`: privacy notice under the Nigeria Data Protection Act 2023
 
 ## How it uses the Postcode API
 
@@ -33,6 +34,14 @@ registered callers, their home postcode and directions.
 - Postcode segments (`FC-01-A01-…`) give a postcode *area* for tower-based locations
 
 Without a key the app runs in **demo mode** on the public sandbox postcodes, so it can be shown anywhere.
+
+## Data protection (NDPA 2023)
+
+- Home registration needs explicit consent (tick box linked to the privacy notice) **and** a YES reply by SMS from the phone itself
+- Text `DELETE` to 112 to erase your home record and your details on past alerts
+- Alerts are deleted after 30 days; unconfirmed registrations after 7 days
+- NIPOST's API only receives coordinates, never names or phone numbers
+- The prototype dashboard is open for evaluation, so only test data should be used
 
 ## Run it locally
 
@@ -78,6 +87,6 @@ In production the network operator would supply it.
 api/        Request handlers (alert, alerts, register, ussd, sms, towers)
 netlify/    Netlify function that routes /api/* to the handlers
 lib/        Postcode API client, alert logic, storage, simulated towers
-public/     The four pages (plain HTML, CSS and JavaScript)
+public/     The pages (plain HTML, CSS and JavaScript)
 dev-server.js  Local stand-in for Netlify
 ```

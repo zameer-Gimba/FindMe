@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="stylesheet" href="/style.css">
+  <meta name="theme-color" content="#d42a20">
+  <title>FindMe: Privacy Notice</title>
+  <style>
+    h1 { margin: 0 0 4px; font-size: 1.5rem; letter-spacing: -0.02em; }
+    h2 { font-size: 1.05rem; margin: 22px 0 6px; }
+    p, li { font-size: 0.95rem; }
+    ul { padding-left: 20px; margin: 6px 0; display: grid; gap: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 6px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted); font-weight: 650; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-dot"></span>FindMe</a>
+    <nav class="nav">
+      <a href="/">Smartphone</a>
+      <a href="/keypad">Keypad phone</a>
+      <a href="/register">Register home</a>
+      <a href="/dashboard">Responders</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <article class="card">
+      <h1>Privacy notice</h1>
+      <p class="muted small">How FindMe handles personal data under the Nigeria Data Protection Act 2023 (NDPA).</p>
+
+      <div class="notice">FindMe is a prototype being evaluated. The responder dashboard is open for testing, so please only use test details and do not enter anyone's real personal information yet.</div>
+
+      <h2>What we collect, and why</h2>
+      <table>
+        <tr><th>Data</th><th>Why we need it</th></tr>
+        <tr><td>Your location when you ask for help (GPS on a smartphone, or the cell-tower area for keypad phones)</td><td>So responders can find you</td></tr>
+        <tr><td>Your phone number</td><td>So responders can call you back, and to link a registered home</td></tr>
+        <tr><td>The kind of emergency and any SMS text you send</td><td>So the right responders come</td></tr>
+        <tr><td>If you register a home: name (optional), home postcode, directions or landmark, who registered it</td><td>So responders know where you live when you call for help</td></tr>
+      </table>
+      <p>We only use this data for emergency response. We never sell it or use it for advertising.</p>
+
+      <h2>Your consent</h2>
+      <ul>
+        <li>We process your data with your consent. Registering a home needs a tick on the consent box <b>and</b> a YES reply by SMS from the phone itself.</li>
+        <li>Sending an alert shares your location with responders. That is the purpose of the alert.</li>
+        <li>You can withdraw consent at any time (see "Your rights").</li>
+      </ul>
+
+      <h2>Who can see it</h2>
+      <ul>
+        <li>Emergency and security responders, on the responder dashboard.</li>
+        <li>A registered home is only shown when <b>that phone number</b> sends an alert.</li>
+        <li>NIPOST's Postcode API receives GPS coordinates to turn them into a postcode. It does not receive names or phone numbers.</li>
+        <li>An SMS provider (Africa's Talking) delivers text messages, once real SMS is switched on.</li>
+      </ul>
+
+      <h2>How long we keep it</h2>
+      <ul>
+        <li><b>Alerts:</b> deleted automatically after 30 days.</li>
+        <li><b>Home registrations not confirmed by SMS:</b> deleted after 7 days.</li>
+        <li><b>Confirmed homes:</b> kept until you delete them.</li>
+      </ul>
+
+      <h2>Your rights</h2>
+      <ul>
+        <li><b>Delete your data:</b> text <b>DELETE</b> to 112. We remove your home registration and your details from past alerts.</li>
+        <li><b>Say no to a registration:</b> reply <b>NO</b> to the confirmation SMS and nothing is saved.</li>
+        <li>You can also ask to see or correct your data, or complain to the Nigeria Data Protection Commission (NDPC).</li>
+      </ul>
+
+      <h2>Where it is stored</h2>
+      <p>Data is stored on Netlify's servers, which may be outside Nigeria, and is protected in transit with HTTPS. A national deployment would use hosting approved by the relevant agencies.</p>
+
+      <h2>Contact</h2>
+      <p>Questions or requests: open an issue at <a href="https://github.com/zameer-Gimba/FindMe/issues" target="_blank" rel="noopener">github.com/zameer-Gimba/FindMe</a>.</p>
+    </article>
+  </main>
+  <footer class="site-footer"><a href="/privacy">Privacy notice (NDPA)</a> · Text DELETE to 112 to remove your data</footer>
+</body>
+</html>

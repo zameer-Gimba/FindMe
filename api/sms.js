@@ -8,6 +8,7 @@ import { sendSms } from '../lib/sms.js';
 //   add FIRE / MEDICAL / ACCIDENT / ATTACK to say what kind, or
 //   reply with 1–5 afterwards to set the kind of emergency.
 //   "YES" / "NO" confirms or rejects a pending home registration.
+//   "DELETE" erases this number's home record and its details on past alerts.
 
 const HELP_WORDS = ['HELP', 'SOS', 'TAIMAKO', 'EGBA MI', 'EGBAMI', 'NYEM AKA', 'NYEMAKA', 'EMERGENCY'];
 const TYPE_WORDS = {
@@ -34,6 +35,16 @@ const NO = ['NO', 'N', 'AA', 'RARA', 'MBA'];
 export async function respond({ from, text, towerId }) {
   const t = String(text || '').toUpperCase().trim();
   const word = t.replace(/[^A-Z]/g, '');
+
+  // Right to erasure (Nigeria Data Protection Act): remove the home record and
+  // strip this number's personal details from its alerts.
+  if (word === 'DELETE') {
+    const phone = normalizePhone(from);
+    await deleteHome(phone);
+    const mine = (await listAlerts()).filter((a) => a.phone === phone);
+    await Promise.all(mine.map((a) => updateAlert(a.id, { phone: null, home: null, note: null, erased: true })));
+    return 'FindMe: your data has been deleted. Your home is no longer registered.';
+  }
 
   // Reply to a home-registration request. The reply coming from this number
   // proves the owner of the phone agreed.
