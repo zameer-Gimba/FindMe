@@ -54,20 +54,23 @@ cp .env.example .env   # optional: add POSTCODE_API_KEY
 npm run dev            # http://localhost:3000
 ```
 
-## Deploy to Netlify (free)
+## Deploy to Vercel (free)
 
-1. On Netlify: **Add new project → Import an existing project → GitHub** and pick this repo.
-   The settings come from `netlify.toml`, so leave the build command empty and click **Deploy**.
-2. **Project configuration → Environment variables**: add `POSTCODE_API_KEY` (your NIPOST *secret* key), then redeploy.
+1. On Vercel: **Add New → Project**, import this repo from GitHub. Framework preset: **Other**. Leave the build command empty; `vercel.json` serves `public/` and turns `api/` into functions.
+2. **Storage → Create → Upstash for Redis** (free), and connect it to the project. This adds `KV_REST_API_URL` and `KV_REST_API_TOKEN`, so every alert reaches the dashboard.
+3. **Settings → Environment Variables**: add `POSTCODE_API_KEY` (your NIPOST *secret* key).
+4. Redeploy, then open `/api/health`: it should show `"storage": "upstash-redis"`.
 
-Alerts are stored in Netlify Blobs, which is built in and free, so there's nothing else to set up.
+## Deploy to Netlify (alternative)
+
+Import the repo on Netlify; `netlify.toml` does the rest. Alerts are stored in Netlify Blobs automatically. Add `POSTCODE_API_KEY` under **Project configuration → Environment variables** and redeploy.
 
 ## Real USSD and SMS (optional)
 
 With an [Africa's Talking](https://africastalking.com) sandbox account:
 
-- USSD callback URL: `https://YOUR-SITE.netlify.app/api/ussd`
-- Incoming SMS callback URL: `https://YOUR-SITE.netlify.app/api/sms`
+- USSD callback URL: `https://YOUR-APP.vercel.app/api/ussd`
+- Incoming SMS callback URL: `https://YOUR-APP.vercel.app/api/sms`
 - Set `AT_USERNAME=sandbox` and `AT_API_KEY` to send SMS replies.
 
 Africa's Talking does not send the caller's tower, so real calls use `DEFAULT_TOWER`.
@@ -85,9 +88,9 @@ In production the network operator would supply it.
 ## Project layout
 
 ```
-api/        Request handlers (alert, alerts, register, ussd, sms, towers)
-netlify/    Netlify function that routes /api/* to the handlers
+api/        Request handlers, also Vercel functions (alert, alerts, health, register, ussd, sms, towers)
+netlify/    Netlify function that routes /api/* to the same handlers
 lib/        Postcode API client, alert logic, storage, simulated towers
 public/     The pages (plain HTML, CSS and JavaScript)
-dev-server.js  Local stand-in for Netlify
+dev-server.js  Local stand-in for Vercel/Netlify
 ```
