@@ -106,6 +106,8 @@
       return [p?.names?.locality, p?.names?.lga, p?.names?.state].filter(Boolean).join(', ');
     }
 
+    const VERIFIED = '<span class="badge green" title="Checked with NIPOST Postcode API lookup">✓ NIPOST verified</span>';
+
     function card(a, fresh) {
       const [label, color] = STATUS[a.status] || STATUS.new;
       const loc = a.location;
@@ -113,7 +115,7 @@
         ? `GPS${loc.accuracy_m ? ` ±${loc.accuracy_m} m` : ''}${loc.simulated ? ' (demo)' : ''}`
         : `Cell tower: ${esc(loc.tower)}, ±${(loc.accuracy_m / 1000).toFixed(1)} km`;
       const code = a.postcode?.display
-        ? `<span class="postcode code">${esc(a.postcode.display)}</span>${loc.method === 'tower' ? ' <span class="muted small">(postcode area)</span>' : ''}`
+        ? `<span class="postcode code">${esc(a.postcode.display)}</span>${loc.method === 'tower' ? ' <span class="muted small">(postcode area)</span>' : ''}${a.postcode.verified ? ` ${VERIFIED}` : ''}`
         : '<span class="muted">No postcode in range</span>';
       return `<article class="card alert ${a.status}${fresh ? ' fresh' : ''}" data-id="${a.id}">
         <div class="head">
@@ -127,7 +129,7 @@
         <div>${esc(place(a.postcode)) || '<span class="muted">Area unknown</span>'}</div>
         <dl>
           <dt>Location</dt><dd>${where}</dd>
-          ${a.home ? `<dt>Home</dt><dd><span class="postcode">${esc(a.home.display)}</span> ${esc(place(a.home))}${a.home.landmark ? `<br>${esc(a.home.landmark)}` : ''}<br><span class="muted small">Registered by ${esc(a.home.registeredBy)}</span></dd>` : ''}
+          ${a.home ? `<dt>Home</dt><dd><span class="postcode">${esc(a.home.display)}</span>${a.home.verified ? ` ${VERIFIED}` : ''} ${esc(place(a.home))}${a.home.landmark ? `<br>${esc(a.home.landmark)}` : ''}<br><span class="muted small">Registered by ${esc(a.home.registeredBy)}</span></dd>` : ''}
           ${a.phone ? `<dt>Phone</dt><dd><a href="tel:${esc(a.phone)}">${esc(a.phone)}</a></dd>` : ''}
           ${a.note ? `<dt>Message</dt><dd>${esc(a.note)}</dd>` : ''}
         </dl>

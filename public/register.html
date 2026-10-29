@@ -157,7 +157,8 @@
         $('c-code').textContent = home.display;
         $('c-place').textContent = place(home);
         const dist = home.distance_m != null ? `Nearest building, ${Math.round(home.distance_m)} m from you` : '';
-        $('c-meta').textContent = [dist, home.address].filter(Boolean).join(' · ');
+        const check = home.verified ? '✓ Verified with NIPOST' : '';
+        $('c-meta').textContent = [check, dist, home.address].filter(Boolean).join(' · ');
         $('check').classList.add('show');
         msg.textContent = '';
       } catch (err) {

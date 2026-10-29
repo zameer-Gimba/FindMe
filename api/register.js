@@ -6,7 +6,7 @@ import { sendSms } from '../lib/sms.js';
 // Home registration, done standing at the house (by the owner, a family member,
 // a ward head or a health worker). The postcode comes from the phone's GPS, so
 // nobody needs to know their postcode.
-//   preview: true -> just find the postcode, so the person can check it's their house
+//   preview: true -> just find and verify the postcode, so the person can check it's their house
 //   otherwise     -> save as pending and text the phone; it is confirmed when
 //                    the owner replies YES (see api/sms.js)
 // Records are only shown to responders when that phone number asks for help.
@@ -27,6 +27,9 @@ export default async function handler(req, res) {
     return res.status(422).json({ error: 'No postcode was found at this spot. Stand right at the house, outside if you can, and try again.' });
   }
   const described = await describe(found);
+  if (described.verified === false) {
+    return res.status(422).json({ error: 'NIPOST says this is not an active postcode. Move closer to the house and try again.' });
+  }
   if (b.preview) return res.status(200).json({ home: described });
 
   const home = {

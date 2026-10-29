@@ -30,6 +30,7 @@ registered callers, their home postcode and directions.
 ## How it uses the Postcode API
 
 - `GET /v1/search/reverse`: GPS → nearest postcode
+- `GET /v1/lookup?level=1`: validates every postcode before a home is saved and on every alert (alert and home), shown as "✓ NIPOST verified" on the dashboard
 - `GET /v1/reference/states` and `/v1/reference/lgas`: state and LGA names from the code segments, so names show even on an L1 key
 - Postcode segments (`FC-01-A01-…`) give a postcode *area* for tower-based locations
 
