@@ -128,7 +128,7 @@
     // and ?tower=ZAM-TSAFE (or BOR-GWOZA, KOG-LOKOJA, ABJ-KUJE) shows a rural tower.
     const params = new URLSearchParams(location.search);
     const CALLER = params.get('caller') || '+2348000000001';
-    const TOWER = params.get('tower') || 'ABJ-WUSE';
+    const TOWER = params.get('tower') || 'FCT-ABAJI';
 
     let mode = 'ussd';
     // ussd: idle (typing a code) | session (answering a menu) | ended (showing END message)

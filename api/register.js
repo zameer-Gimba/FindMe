@@ -1,5 +1,5 @@
 import { normalizePhone } from '../lib/alerts.js';
-import { describe, nearestSample, parse, reverse } from '../lib/postcode.js';
+import { describe, parse, reverse, SAMPLE_POINTS } from '../lib/postcode.js';
 import { saveHome } from '../lib/store.js';
 import { sendSms } from '../lib/sms.js';
 
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   let found;
   if (b.demo) {
-    found = { ...parse(nearestSample(9.0579, 7.4951).code), distance_m: 4, confidence: 'demo' };
+    found = { ...parse(SAMPLE_POINTS[0].code), distance_m: 4, confidence: 'demo' };
   } else if (b.lat !== '' && b.lng !== '' && Number.isFinite(Number(b.lat)) && Number.isFinite(Number(b.lng))) {
     found = await reverse(Number(b.lat), Number(b.lng));
   }
