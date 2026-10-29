@@ -27,7 +27,8 @@ export default async function handler(req, res) {
     return res.status(422).json({ error: 'No postcode was found at this spot. Stand right at the house, outside if you can, and try again.' });
   }
   const described = await describe(found);
-  if (described.verified === false) {
+  // A simulated demo location is not checked against NIPOST data.
+  if (!b.demo && described.verified === false) {
     return res.status(422).json({ error: 'NIPOST says this is not an active postcode. Move closer to the house and try again.' });
   }
   if (b.preview) return res.status(200).json({ home: described });

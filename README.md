@@ -1,5 +1,7 @@
 # FindMe
 
+Live prototype: **https://findme-psi-three.vercel.app**
+
 **Emergency alerts that arrive with an exact Nigerian postcode, from any phone.**
 
 Built on NIPOST's National Digital Alphanumeric Postcode API. When someone is
@@ -69,8 +71,8 @@ Import the repo on Netlify; `netlify.toml` does the rest. Alerts are stored in N
 
 With an [Africa's Talking](https://africastalking.com) sandbox account:
 
-- USSD callback URL: `https://YOUR-APP.vercel.app/api/ussd`
-- Incoming SMS callback URL: `https://YOUR-APP.vercel.app/api/sms`
+- USSD callback URL: `https://findme-psi-three.vercel.app/api/ussd`
+- Incoming SMS callback URL: `https://findme-psi-three.vercel.app/api/sms`
 - Set `AT_USERNAME=sandbox` and `AT_API_KEY` to send SMS replies.
 
 Africa's Talking does not send the caller's tower, so real calls use `DEFAULT_TOWER`.
