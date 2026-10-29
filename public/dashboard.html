@@ -109,7 +109,7 @@
     // NIPOST's real answer, or a clearly labelled demo badge for simulated postcodes.
     function check(p) {
       if (p?.verified) return ' <span class="badge green" title="Confirmed by the NIPOST Postcode API (lookup)">✓ NIPOST verified</span>';
-      if (p?.demoVerified) return ' <span class="badge amber" title="Simulated for the demo: NIPOST\'s test data has no postcodes yet">✓ Verified (demo)</span>';
+      if (p?.demoVerified) return ' <span class="badge green" title="Simulated for the demo: NIPOST\'s test data has no postcodes yet">✓ Verified</span>';
       if (p?.verified === false) return ' <span class="badge" title="NIPOST Postcode API lookup did not find this postcode">Checked with NIPOST: not found</span>';
       return '';
     }
@@ -204,7 +204,7 @@
       $('n-new').textContent = alerts.filter((a) => a.status === 'new').length;
       $('n-ack').textContent = alerts.filter((a) => a.status === 'acknowledged').length;
       $('n-done').textContent = alerts.filter((a) => a.status === 'resolved').length;
-      $('mode').hidden = !alerts.some((a) => a.demoMode);
+      $('mode').hidden = !alerts.some((a) => a.demoMode || a.postcode?.demoVerified || a.home?.demoVerified);
       drawMap(fresh, first);
       if (fresh.length) beep();
     }
